@@ -49,3 +49,17 @@ prompt
 server.log
 # Skills directory
 /skills/
+# Build artifacts
+public/app/
+debt-invoice-app/dist/
+debt-invoice-app/dist_old/
+debt-invoice-app/node_modules/
+download/
+
+# Database
+db/
+*.db
+*.sqlite
+
+# Logs
+*.log

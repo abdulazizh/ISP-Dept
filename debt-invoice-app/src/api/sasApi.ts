@@ -7,7 +7,7 @@ import CryptoJS from 'crypto-js';
 const ENCRYPTION_KEY = 'abcdefghijuklmno0123456789012345';
 
 // Proxy URL for web - Next.js server
-const PROXY_API_URL = 'https://ue0gru-ip-8-210-141-218.tunnelmole.net/api/sas';
+const PROXY_API_URL = 'https://7caafz-ip-8-218-223-229.tunnelmole.net/api/sas';
 
 // Types
 export interface ServerConfig {

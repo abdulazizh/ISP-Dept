@@ -7,6 +7,14 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+  async rewrites() {
+    return [
+      {
+        source: '/app',
+        destination: '/app/index.html',
+      },
+    ];
+  },
 };
 
 export default nextConfig;
