@@ -21,7 +21,6 @@ export interface Profile {
   downrate?: number
   expiration_unit?: number
   expiration_amount?: number
-  price?: string
   enabled?: number
 }
 
@@ -106,8 +105,47 @@ export interface ServerStats {
   [key: string]: number | undefined
 }
 
+// Activation Log Types
+export interface ActivationLog {
+  id: number
+  user_id: number
+  username?: string
+  profile_id?: number
+  profile_name?: string
+  action?: string
+  type?: string
+  amount?: string | number
+  price?: string | number
+  duration?: string
+  expiration?: string
+  created_at?: string
+  created_by?: string
+  manager_username?: string
+  description?: string
+  status?: string
+}
+
+// Activation Log Types
+export interface ActivationLog {
+  id: number
+  user_id: number
+  username?: string
+  profile_id?: number
+  profile_name?: string
+  action?: string
+  amount?: number
+  price?: number
+  months?: number
+  created_at?: string
+  manager_id?: number
+  manager_username?: string
+  created_by?: string
+  description?: string
+  status?: string
+}
+
 // Tab Types
-export type TabId = 'dashboard' | 'servers' | 'users' | 'profiles' | 'managers'
+export type TabId = 'dashboard' | 'servers' | 'users' | 'profiles' | 'managers' | 'activations'
 
 export interface Tab {
   id: TabId

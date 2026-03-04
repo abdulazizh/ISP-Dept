@@ -12,7 +12,8 @@ const TABS: Tab[] = [
   { id: 'servers', label: 'السيرفرات', icon: '🖥️' },
   { id: 'profiles', label: 'الباقات', icon: '📦' },
   { id: 'users', label: 'المشتركين', icon: '👥' },
-  { id: 'managers', label: 'المدراء', icon: '👨‍💼' }
+  { id: 'managers', label: 'المدراء', icon: '👨‍💼' },
+  { id: 'activations', label: 'التفعيلات', icon: '📋' }
 ]
 
 export function Navigation({ activeTab, onTabChange }: NavigationProps) {

@@ -218,6 +218,51 @@ class ProxyApiService {
       return { success: false, message: error.message };
     }
   }
+
+  // Create new user
+  async createUser(userData: {
+    username: string;
+    password: string;
+    firstname?: string;
+    lastname?: string;
+    phone?: string;
+    email?: string;
+    profile_id?: number;
+    enabled?: number;
+    expiration?: string;
+  }): Promise<{ success: boolean; user?: any; message?: string; errors?: Record<string, string[]> }> {
+    try {
+      if (!this.token) {
+        const loginResult = await this.login();
+        if (!loginResult.success) {
+          return { success: false, message: loginResult.message };
+        }
+      }
+
+      if (this.useProxy) {
+        return await this.proxyRequest('createUser', { userData });
+      } else {
+        const { sasApi: directApi } = await import('./sasApi.native');
+        return await directApi.createUser(userData);
+      }
+    } catch (error: any) {
+      return { success: false, message: error.message };
+    }
+  }
+
+  // Delete user
+  async deleteUser(userId: number): Promise<{ success: boolean; message?: string }> {
+    try {
+      if (this.useProxy) {
+        return await this.proxyRequest('deleteUser', { userId });
+      } else {
+        const { sasApi: directApi } = await import('./sasApi.native');
+        return await directApi.deleteUser(userId);
+      }
+    } catch (error: any) {
+      return { success: false, message: error.message };
+    }
+  }
 }
 
 export const sasApi = new ProxyApiService();

@@ -119,26 +119,30 @@ export async function POST(request: NextRequest) {
 
       // Process users
       if (Array.isArray(usersRes.data)) {
-        results.users = usersRes.data.map((u: Record<string, unknown>) => ({
-          id: u.id,
-          username: u.username,
-          firstname: u.firstname || '',
-          lastname: u.lastname || '',
-          email: u.email || '',
-          phone: u.phone || '',
-          balance: String(u.balance || '0'),
-          profile: u.profile_details?.name || u.profile_id,
-          profile_id: u.profile_id,
-          status: u.enabled === 1 ? 'active' : 'disabled',
-          expiration: u.expiration || '',
-          enabled: u.enabled,
-          online_status: u.online_status,
-          last_online: u.last_online,
-          created_at: u.created_at,
-          parent_username: u.parent_username,
-          debt_days: u.debt_days,
-          daily_traffic: u.daily_traffic_details?.traffic
-        }))
+        results.users = usersRes.data.map((u: Record<string, unknown>) => {
+          const profileDetails = u.profile_details as { name?: string } | undefined
+          const dailyTrafficDetails = u.daily_traffic_details as { traffic?: number } | undefined
+          return {
+            id: u.id,
+            username: u.username,
+            firstname: u.firstname || '',
+            lastname: u.lastname || '',
+            email: u.email || '',
+            phone: u.phone || '',
+            balance: String(u.balance || '0'),
+            profile: profileDetails?.name || u.profile_id,
+            profile_id: u.profile_id,
+            status: u.enabled === 1 ? 'active' : 'disabled',
+            expiration: u.expiration || '',
+            enabled: u.enabled,
+            online_status: u.online_status,
+            last_online: u.last_online,
+            created_at: u.created_at,
+            parent_username: u.parent_username,
+            debt_days: u.debt_days,
+            daily_traffic: dailyTrafficDetails?.traffic
+          }
+        })
       }
 
       // Process profiles
@@ -314,6 +318,82 @@ export async function POST(request: NextRequest) {
         return corsResponse({ success: true, users: result.data })
       }
       return corsResponse({ success: false, message: result.message || 'فشل البحث' })
+    }
+
+    // ==================== GET ACTIVATION LOG ====================
+    if (action === 'getActivationLog') {
+      const { page = 1, count = 100, userId } = body
+      const requestBody: Record<string, unknown> = { page, count }
+      if (userId) {
+        requestBody.user_id = userId
+      }
+      const result = await apiRequest(server.url, 'POST', '/report/activations', token, requestBody)
+      if (result.data) {
+        const logs = Array.isArray(result.data) ? result.data : (result.data as { data?: unknown[] }).data || []
+        const total = (result.data as { total?: number }).total || logs.length
+        return corsResponse({ success: true, logs, total })
+      }
+      return corsResponse({ success: false, message: result.message || 'فشل تحميل سجل التفعيلات' })
+    }
+
+    // ==================== ACTIVATE USER ====================
+    if (action === 'activateUser') {
+      const { profileId, months, amount } = body
+      const activationData: Record<string, unknown> = {
+        user_id: userId,
+        profile_id: profileId
+      }
+      if (months) {
+        activationData.months = months
+      }
+      if (amount) {
+        activationData.amount = amount
+      }
+      const result = await apiRequest(server.url, 'POST', `/user/${userId}/activate`, token, activationData)
+      if (result.status === 200) {
+        return corsResponse({ success: true, message: 'تم تفعيل المستخدم بنجاح' })
+      }
+      return corsResponse({ success: false, message: result.message || 'فشل تفعيل المستخدم' })
+    }
+
+    // ==================== DEACTIVATE USER ====================
+    if (action === 'deactivateUser') {
+      const result = await apiRequest(server.url, 'PUT', `/user/${userId}`, token, { enabled: 0 })
+      if (result.status === 200) {
+        return corsResponse({ success: true, message: 'تم تعطيل المستخدم بنجاح' })
+      }
+      return corsResponse({ success: false, message: result.message || 'فشل تعطيل المستخدم' })
+    }
+
+    // ==================== DISCONNECT USER ====================
+    if (action === 'disconnectUser') {
+      const result = await apiRequest(server.url, 'POST', `/user/${userId}/disconnect`, token, {})
+      if (result.status === 200) {
+        return corsResponse({ success: true, message: 'تم قطع اتصال المستخدم بنجاح' })
+      }
+      return corsResponse({ success: false, message: result.message || 'فشل قطع اتصال المستخدم' })
+    }
+
+    // ==================== RENEW SUBSCRIPTION ====================
+    if (action === 'renewSubscription') {
+      const { months, profileId, amount } = body
+      const renewData: Record<string, unknown> = {
+        user_id: userId
+      }
+      if (profileId) {
+        renewData.profile_id = profileId
+      }
+      if (months) {
+        renewData.months = months
+      }
+      if (amount) {
+        renewData.amount = amount
+      }
+      const result = await apiRequest(server.url, 'POST', `/user/${userId}/activate`, token, renewData)
+      if (result.status === 200) {
+        return corsResponse({ success: true, message: 'تم تجديد الاشتراك بنجاح' })
+      }
+      return corsResponse({ success: false, message: result.message || 'فشل تجديد الاشتراك' })
     }
 
     return corsResponse({ success: false, message: 'إجراء غير معروف' })

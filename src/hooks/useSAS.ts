@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import type { Server, User, Profile, Stats, ServerStats, Manager } from '@/types'
+import type { Server, User, Profile, Stats, ServerStats, Manager, ActivationLog } from '@/types'
 import { STORAGE_KEYS } from '@/utils/constants'
 
 interface SyncAllResponse {
@@ -27,6 +27,7 @@ interface UseSASReturn {
   serverStats: ServerStats
   stats: Stats
   syncStatus: string
+  activationLogs: ActivationLog[]
   login: (server: Server) => Promise<string>
   syncAll: (server: Server, token: string) => Promise<SyncAllResponse>
   createUser: (server: Server, token: string, userData: Record<string, unknown>) => Promise<{ success: boolean; message?: string }>
@@ -37,6 +38,11 @@ interface UseSASReturn {
   setSyncStatus: (status: string) => void
   setToken: (token: string | null) => void
   setIsConnected: (connected: boolean) => void
+  getActivationLog: (server: Server, token: string, userId?: number, page?: number) => Promise<{ success: boolean; logs?: ActivationLog[]; total?: number; message?: string }>
+  activateUser: (server: Server, token: string, userId: number, profileId: number, months?: number, amount?: number) => Promise<{ success: boolean; message?: string }>
+  deactivateUser: (server: Server, token: string, userId: number) => Promise<{ success: boolean; message?: string }>
+  disconnectUser: (server: Server, token: string, userId: number) => Promise<{ success: boolean; message?: string }>
+  renewSubscription: (server: Server, token: string, userId: number, months: number, profileId?: number, amount?: number) => Promise<{ success: boolean; message?: string }>
 }
 
 export function useSAS(): UseSASReturn {
@@ -55,6 +61,7 @@ export function useSAS(): UseSASReturn {
     totalDebt: 0 
   })
   const [syncStatus, setSyncStatus] = useState('')
+  const [activationLogs, setActivationLogs] = useState<ActivationLog[]>([])
 
   // Calculate stats from users list
   const calculateStats = useCallback((userList: User[]) => {
@@ -312,6 +319,208 @@ export function useSAS(): UseSASReturn {
     }
   }, [])
 
+  // Get Activation Log
+  const getActivationLog = useCallback(async (
+    server: Server,
+    authToken: string,
+    userId?: number,
+    page: number = 1
+  ): Promise<{ success: boolean; logs?: ActivationLog[]; total?: number; message?: string }> => {
+    setIsLoading(true)
+    
+    try {
+      const response = await fetch('/api/sas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'getActivationLog',
+          server: { url: server.url },
+          token: authToken,
+          page,
+          userId
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success && data.logs) {
+        setActivationLogs(data.logs)
+        return { success: true, logs: data.logs, total: data.total }
+      } else {
+        return { success: false, message: data.message || 'فشل تحميل سجل التفعيلات' }
+      }
+    } catch (error) {
+      const errorMsg = 'خطأ: ' + (error instanceof Error ? error.message : 'خطأ غير معروف')
+      return { success: false, message: errorMsg }
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  // Activate User
+  const activateUser = useCallback(async (
+    server: Server,
+    authToken: string,
+    userId: number,
+    profileId: number,
+    months?: number,
+    amount?: number
+  ): Promise<{ success: boolean; message?: string }> => {
+    setIsLoading(true)
+    
+    try {
+      const response = await fetch('/api/sas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'activateUser',
+          server: { url: server.url },
+          token: authToken,
+          userId,
+          profileId,
+          months,
+          amount
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setSyncStatus('✅ تم تفعيل المستخدم بنجاح')
+        return { success: true, message: data.message }
+      } else {
+        setSyncStatus('❌ ' + (data.message || 'فشل تفعيل المستخدم'))
+        return { success: false, message: data.message }
+      }
+    } catch (error) {
+      const errorMsg = 'خطأ: ' + (error instanceof Error ? error.message : 'خطأ غير معروف')
+      setSyncStatus(errorMsg)
+      return { success: false, message: errorMsg }
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  // Deactivate User
+  const deactivateUser = useCallback(async (
+    server: Server,
+    authToken: string,
+    userId: number
+  ): Promise<{ success: boolean; message?: string }> => {
+    setIsLoading(true)
+    
+    try {
+      const response = await fetch('/api/sas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'deactivateUser',
+          server: { url: server.url },
+          token: authToken,
+          userId
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setSyncStatus('✅ تم تعطيل المستخدم بنجاح')
+        return { success: true, message: data.message }
+      } else {
+        setSyncStatus('❌ ' + (data.message || 'فشل تعطيل المستخدم'))
+        return { success: false, message: data.message }
+      }
+    } catch (error) {
+      const errorMsg = 'خطأ: ' + (error instanceof Error ? error.message : 'خطأ غير معروف')
+      setSyncStatus(errorMsg)
+      return { success: false, message: errorMsg }
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  // Disconnect User
+  const disconnectUser = useCallback(async (
+    server: Server,
+    authToken: string,
+    userId: number
+  ): Promise<{ success: boolean; message?: string }> => {
+    setIsLoading(true)
+    
+    try {
+      const response = await fetch('/api/sas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'disconnectUser',
+          server: { url: server.url },
+          token: authToken,
+          userId
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setSyncStatus('✅ تم قطع اتصال المستخدم بنجاح')
+        return { success: true, message: data.message }
+      } else {
+        setSyncStatus('❌ ' + (data.message || 'فشل قطع اتصال المستخدم'))
+        return { success: false, message: data.message }
+      }
+    } catch (error) {
+      const errorMsg = 'خطأ: ' + (error instanceof Error ? error.message : 'خطأ غير معروف')
+      setSyncStatus(errorMsg)
+      return { success: false, message: errorMsg }
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  // Renew Subscription
+  const renewSubscription = useCallback(async (
+    server: Server,
+    authToken: string,
+    userId: number,
+    months: number,
+    profileId?: number,
+    amount?: number
+  ): Promise<{ success: boolean; message?: string }> => {
+    setIsLoading(true)
+    
+    try {
+      const response = await fetch('/api/sas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'renewSubscription',
+          server: { url: server.url },
+          token: authToken,
+          userId,
+          months,
+          profileId,
+          amount
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setSyncStatus('✅ تم تجديد الاشتراك بنجاح')
+        return { success: true, message: data.message }
+      } else {
+        setSyncStatus('❌ ' + (data.message || 'فشل تجديد الاشتراك'))
+        return { success: false, message: data.message }
+      }
+    } catch (error) {
+      const errorMsg = 'خطأ: ' + (error instanceof Error ? error.message : 'خطأ غير معروف')
+      setSyncStatus(errorMsg)
+      return { success: false, message: errorMsg }
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
   return {
     token,
     isConnected,
@@ -323,6 +532,7 @@ export function useSAS(): UseSASReturn {
     serverStats,
     stats,
     syncStatus,
+    activationLogs,
     login,
     syncAll,
     createUser,
@@ -332,6 +542,11 @@ export function useSAS(): UseSASReturn {
     loadCachedUsers,
     setSyncStatus,
     setToken,
-    setIsConnected
+    setIsConnected,
+    getActivationLog,
+    activateUser,
+    deactivateUser,
+    disconnectUser,
+    renewSubscription
   }
 }

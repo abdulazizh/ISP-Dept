@@ -19,7 +19,7 @@ import { Card, StatCard, InfoRow } from '../../src/components/Card';
 import { SearchInput, Input } from '../../src/components/Input';
 import { Button } from '../../src/components/Buttons';
 import { COLORS, SIZES, SHADOWS, formatCurrency, formatArabicDate, getStatusColor } from '../../src/utils/theme';
-import { CachedUser } from '../../src/database/index';
+import { GlobalUser } from '../../src/database/index';
 import { sasApi } from '../../src/api/sasApi';
 
 export default function SubscribersScreen() {
@@ -34,20 +34,44 @@ export default function SubscribersScreen() {
     syncData,
     isSyncing,
     syncStatus,
+    addSubscriber,
+    deleteSubscriber,
+    canDeleteUser,
+    profiles,
+    addDebt,
+    refreshDebts,
+    refreshStats,
+    createUser,
+    deleteUser: deleteUserFromSAS,
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredUsers, setFilteredUsers] = useState<CachedUser[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<GlobalUser[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<CachedUser | null>(null);
+  const [selectedUser, setSelectedUser] = useState<GlobalUser | null>(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showRenewModal, setShowRenewModal] = useState(false);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [depositAmount, setDepositAmount] = useState('');
   const [depositComment, setDepositComment] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [renewMonths, setRenewMonths] = useState('1');
+  const [renewAmount, setRenewAmount] = useState('');
+  const [renewPaymentType, setRenewPaymentType] = useState<'paid' | 'debt'>('paid');
+
+  // Add user form state
+  const [newUsername, setNewUsername] = useState('');
+  const [newFirstname, setNewFirstname] = useState('');
+  const [newLastname, setNewLastname] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newProfileId, setNewProfileId] = useState('');
+  const [newMonths, setNewMonths] = useState('1');
+  const [registerAsDebt, setRegisterAsDebt] = useState(false);
+  const [debtAmount, setDebtAmount] = useState('');
 
   // Update filtered users
   useEffect(() => {
@@ -88,7 +112,7 @@ export default function SubscribersScreen() {
     setSearchQuery(query);
   };
 
-  const handleUserPress = (user: CachedUser) => {
+  const handleUserPress = (user: GlobalUser) => {
     setSelectedUser(user);
     setShowUserModal(true);
   };
@@ -160,21 +184,49 @@ export default function SubscribersScreen() {
     if (!selectedUser) return;
 
     const months = parseInt(renewMonths) || 1;
+    const amount = parseFloat(renewAmount) || 0;
+
+    if (renewPaymentType === 'debt' && amount <= 0) {
+      Alert.alert('خطأ', 'يرجى إدخال مبلغ الدين');
+      return;
+    }
 
     setIsProcessing(true);
     try {
-      // حساب تاريخ الانتهاء الجديد
       const currentExpiration = selectedUser.expiration ? new Date(selectedUser.expiration) : new Date();
       const baseDate = currentExpiration > new Date() ? currentExpiration : new Date();
       const newExpiration = new Date(baseDate);
       newExpiration.setMonth(newExpiration.getMonth() + months);
 
+      // تسجيل كدين إذا تم اختياره
+      if (renewPaymentType === 'debt' && amount > 0) {
+        const profileName = selectedUser.profile || '';
+        await addDebt({
+          user_id: selectedUser.user_id,
+          username: selectedUser.username,
+          amount: amount,
+          remaining_amount: amount,
+          description: `تجديد اشتراك ${months} شهر - ${profileName}`,
+          months: months,
+          profile_name: profileName,
+          status: 'pending',
+        });
+        await refreshDebts();
+        await refreshStats();
+      }
+
       const result = await sasApi.userDeposit(selectedUser.user_id, 0, `تجديد اشتراك ${months} شهر`);
       
       if (result.success) {
-        Alert.alert('نجاح', `تم تجديد الاشتراك لمدة ${months} شهر`);
+        const message = renewPaymentType === 'debt' 
+          ? `تم تجديد الاشتراك لمدة ${months} شهر
+تم تسجيل المبلغ ${formatCurrency(amount.toString())} كدين`
+          : `تم تجديد الاشتراك لمدة ${months} شهر`;
+        Alert.alert('نجاح', message);
         setShowRenewModal(false);
         setRenewMonths('1');
+        setRenewAmount('');
+        setRenewPaymentType('paid');
         await handleSync();
       } else {
         Alert.alert('خطأ', result.message || 'فشل تجديد الاشتراك');
@@ -202,7 +254,6 @@ export default function SubscribersScreen() {
           onPress: async () => {
             setIsProcessing(true);
             try {
-              // محاكاة التفعيل/التعطيل
               Alert.alert('نجاح', `تم ${newStatus} المشترك`);
               await handleSync();
             } catch (error) {
@@ -245,6 +296,189 @@ export default function SubscribersScreen() {
     );
   };
 
+  // حذف المشترك مع التحقق من الديون
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+
+    // التحقق من الديون
+    const canDelete = await canDeleteUser(selectedUser.user_id);
+    if (!canDelete) {
+      Alert.alert(
+        'لا يمكن الحذف',
+        'لا يمكن حذف هذا المشترك لأن لديه ديون مسجلة. يرجى تسديد الديون أولاً.',
+        [{ text: 'حسناً' }]
+      );
+      return;
+    }
+
+    Alert.alert(
+      'حذف المشترك',
+      `هل أنت متأكد من حذف المشترك ${selectedUser.username}؟\nهذا الإجراء لا يمكن التراجع عنه.`,
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        {
+          text: 'حذف',
+          style: 'destructive',
+          onPress: async () => {
+            setIsProcessing(true);
+            try {
+              const result = await deleteSubscriber(selectedUser.user_id);
+              if (result.success) {
+                Alert.alert('نجاح', result.message);
+                setShowUserModal(false);
+                setSelectedUser(null);
+              } else {
+                Alert.alert('خطأ', result.message);
+              }
+            } catch (error) {
+              Alert.alert('خطأ', 'حدث خطأ غير متوقع');
+            } finally {
+              setIsProcessing(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // إضافة مشترك جديد
+  const handleAddUser = async () => {
+    if (!newUsername.trim()) {
+      Alert.alert('خطأ', 'يرجى إدخال اسم المستخدم');
+      return;
+    }
+
+    if (!newPassword.trim()) {
+      Alert.alert('خطأ', 'يرجى إدخال كلمة المرور');
+      return;
+    }
+
+    if (registerAsDebt && !debtAmount.trim()) {
+      Alert.alert('خطأ', 'يرجى إدخال مبلغ الدين');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      // حساب تاريخ الانتهاء
+      const months = parseInt(newMonths) || 1;
+      const expiration = new Date();
+      expiration.setMonth(expiration.getMonth() + months);
+      
+      // التحقق من اختيار الباقة
+      const profileId = newProfileId ? parseInt(newProfileId) : undefined;
+      if (!profileId) {
+        Alert.alert('خطأ', 'يرجى اختيار الباقة');
+        setIsProcessing(false);
+        return;
+      }
+      
+      // إضافة المشترك إلى سيرفر SAS
+      // parent_id يكون معرف المستخدم الحالي (من السيرفر)
+      const parentId = currentServer?.parent_id || 18; // 18 = aziz
+      
+      const sasResult = await createUser({
+        username: newUsername.trim(),
+        password: newPassword.trim(),
+        firstname: newFirstname.trim() || undefined,
+        lastname: newLastname.trim() || undefined,
+        phone: newPhone.trim() || undefined,
+        email: newEmail.trim() || undefined,
+        profile_id: profileId,
+        parent_id: parentId,
+        enabled: 1,
+        expiration: expiration.toISOString().slice(0, 19).replace('T', ' '),
+      });
+
+      if (!sasResult.success) {
+        // فشل الإضافة للسيرفر
+        const errorMsg = sasResult.message || 'فشل إضافة المشترك للسيرفر';
+        const errors = sasResult.errors ? '\n' + Object.values(sasResult.errors).flat().join('\n') : '';
+        Alert.alert('خطأ', errorMsg + errors);
+        setIsProcessing(false);
+        return;
+      }
+
+      // نجح الإضافة للسيرفر - جلب user_id من الاستجابة
+      const sasUserId = sasResult.user?.id || sasResult.user?.user_id || Date.now();
+      const profileName = profiles.find(p => p.profile_id === profileId)?.name;
+
+      // إضافة المشترك محلياً
+      await addSubscriber({
+        user_id: sasUserId,
+        username: newUsername.trim(),
+        firstname: newFirstname.trim() || undefined,
+        lastname: newLastname.trim() || undefined,
+        phone: newPhone.trim() || undefined,
+        email: newEmail.trim() || undefined,
+        balance: '0',
+        profile: profileName,
+        profile_id: profileId,
+        status: 'active',
+        expiration: expiration.toISOString(),
+        enabled: 1,
+        source_server: currentServer?.name,
+      });
+
+      // تسجيل كدين إذا تم اختياره
+      if (registerAsDebt) {
+        const amount = parseFloat(debtAmount);
+        if (!isNaN(amount) && amount > 0) {
+          await addDebt({
+            user_id: sasUserId,
+            username: newUsername.trim(),
+            amount: amount,
+            remaining_amount: amount,
+            description: `تسجيل دين عند إنشاء الحساب - ${months} شهر`,
+            months: months,
+            profile_name: profileName,
+            status: 'pending',
+          });
+          // تحديث الديون والإحصائيات
+          await refreshDebts();
+          await refreshStats();
+        }
+      }
+
+      Alert.alert('نجاح', 'تم إضافة المشترك بنجاح' + (registerAsDebt ? '\nتم تسجيل المبلغ كدين' : ''));
+      
+      // إعادة تعيين النموذج
+      setShowAddUserModal(false);
+      setNewUsername('');
+      setNewFirstname('');
+      setNewLastname('');
+      setNewPhone('');
+      setNewEmail('');
+      setNewPassword('');
+      setNewProfileId('');
+      setNewMonths('1');
+      setRegisterAsDebt(false);
+      setDebtAmount('');
+      
+      // تحديث القائمة
+      await syncData();
+      
+    } catch (error) {
+      console.error('Error adding user:', error);
+      Alert.alert('خطأ', 'حدث خطأ أثناء إضافة المشترك');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const resetAddUserForm = () => {
+    setNewUsername('');
+    setNewFirstname('');
+    setNewLastname('');
+    setNewPhone('');
+    setNewEmail('');
+    setNewPassword('');
+    setNewProfileId('');
+    setNewMonths('1');
+    setRegisterAsDebt(false);
+    setDebtAmount('');
+  };
+
   const getStatusLabel = (status: string): string => {
     const labels: Record<string, string> = {
       active: 'نشط',
@@ -256,7 +490,7 @@ export default function SubscribersScreen() {
     return labels[status?.toLowerCase()] || status || 'غير محدد';
   };
 
-  const renderUserItem = ({ item }: { item: CachedUser }) => (
+  const renderUserItem = ({ item }: { item: GlobalUser }) => (
     <TouchableOpacity onPress={() => handleUserPress(item)}>
       <Card style={styles.userCard}>
         <View style={styles.userContent}>
@@ -300,11 +534,11 @@ export default function SubscribersScreen() {
           ? 'قم بإضافة والاتصال بسيرفر أولاً'
           : !isConnected
           ? 'تأكد من الاتصال بالسيرفر'
-          : 'قم بمزامنة البيانات لتحديث القائمة'}
+          : 'سيتم جلب البيانات تلقائياً عند الاتصال'}
       </Text>
-      {currentServer && isConnected && (
+      {currentServer && isConnected && subscribers.length === 0 && (
         <Button
-          title="مزامنة البيانات"
+          title="تحديث البيانات"
           onPress={handleSync}
           loading={isSyncing}
           style={styles.emptyButton}
@@ -334,6 +568,12 @@ export default function SubscribersScreen() {
               {filteredUsers.length} من {subscribers.length}
             </Text>
           </View>
+          <TouchableOpacity 
+            onPress={() => setShowAddUserModal(true)}
+            disabled={!isConnected}
+          >
+            <Ionicons name="person-add" size={24} color={COLORS.textLight} />
+          </TouchableOpacity>
         </View>
 
         {/* Connection Status */}
@@ -381,7 +621,7 @@ export default function SubscribersScreen() {
       )}
 
       {/* Search and Filters */}
-      {isConnected && subscribers.length > 0 && (
+      {subscribers.length > 0 && (
         <View style={styles.searchSection}>
           <SearchInput
             value={searchQuery}
@@ -417,7 +657,7 @@ export default function SubscribersScreen() {
       <FlatList
         data={filteredUsers}
         renderItem={renderUserItem}
-        keyExtractor={(item) => `${item.server_id}-${item.user_id}`}
+        keyExtractor={(item) => `${item.user_id}`}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -425,6 +665,16 @@ export default function SubscribersScreen() {
         }
         ListEmptyComponent={renderEmptyState}
       />
+
+      {/* Floating Add Button */}
+      {isConnected && (
+        <TouchableOpacity 
+          style={styles.fab}
+          onPress={() => setShowAddUserModal(true)}
+        >
+          <Ionicons name="add" size={32} color={COLORS.textLight} />
+        </TouchableOpacity>
+      )}
 
       {/* User Details Modal */}
       <Modal
@@ -522,27 +772,14 @@ export default function SubscribersScreen() {
                   </View>
                 </Card>
 
-                {/* Actions */}
-                <View style={styles.modalActions}>
-                  <Button
-                    title="إيداع"
-                    onPress={() => {
-                      setShowUserModal(false);
-                      setShowDepositModal(true);
-                    }}
-                    variant="success"
-                    style={styles.modalActionButton}
-                  />
-                  <Button
-                    title="سحب"
-                    onPress={() => {
-                      setShowUserModal(false);
-                      setShowDepositModal(true);
-                    }}
-                    variant="danger"
-                    style={styles.modalActionButton}
-                  />
-                </View>
+                {/* حذف المشترك */}
+                <Button
+                  title="حذف المشترك"
+                  onPress={handleDeleteUser}
+                  variant="danger"
+                  loading={isProcessing}
+                  style={styles.deleteButton}
+                />
               </ScrollView>
             )}
           </View>
@@ -618,12 +855,20 @@ export default function SubscribersScreen() {
         visible={showRenewModal}
         animationType="slide"
         transparent
-        onRequestClose={() => setShowRenewModal(false)}
+        onRequestClose={() => {
+          setShowRenewModal(false);
+          setRenewAmount('');
+          setRenewPaymentType('paid');
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => setShowRenewModal(false)}>
+              <TouchableOpacity onPress={() => {
+                setShowRenewModal(false);
+                setRenewAmount('');
+                setRenewPaymentType('paid');
+              }}>
                 <Ionicons name="close-outline" size={24} color={COLORS.textPrimary} />
               </TouchableOpacity>
               <Text style={styles.modalTitle}>تجديد الاشتراك</Text>
@@ -631,7 +876,7 @@ export default function SubscribersScreen() {
             </View>
 
             {selectedUser && (
-              <>
+              <ScrollView showsVerticalScrollIndicator={false}>
                 <Text style={styles.selectedUserText}>
                   المشترك: {selectedUser.username}
                 </Text>
@@ -674,14 +919,225 @@ export default function SubscribersScreen() {
                   icon="calendar-outline"
                 />
 
+                {/* حقل المبلغ */}
+                <Input
+                  label="المبلغ"
+                  placeholder="0.00"
+                  value={renewAmount}
+                  onChangeText={setRenewAmount}
+                  keyboardType="numeric"
+                  icon="cash-outline"
+                />
+
+                {/* خيار نوع الدفع */}
+                <Text style={styles.renewLabel}>نوع الدفع:</Text>
+                <View style={styles.paymentTypeContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.paymentTypeButton,
+                      renewPaymentType === 'paid' && styles.paymentTypeButtonActive,
+                    ]}
+                    onPress={() => setRenewPaymentType('paid')}
+                  >
+                    <Ionicons 
+                      name="checkmark-circle" 
+                      size={20} 
+                      color={renewPaymentType === 'paid' ? COLORS.success : COLORS.textSecondary} 
+                    />
+                    <Text style={[
+                      styles.paymentTypeText,
+                      renewPaymentType === 'paid' && styles.paymentTypeTextActive,
+                    ]}>
+                      واصل (مدفوع)
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.paymentTypeButton,
+                      renewPaymentType === 'debt' && styles.paymentTypeButtonDebt,
+                    ]}
+                    onPress={() => setRenewPaymentType('debt')}
+                  >
+                    <Ionicons 
+                      name="alert-circle" 
+                      size={20} 
+                      color={renewPaymentType === 'debt' ? COLORS.error : COLORS.textSecondary} 
+                    />
+                    <Text style={[
+                      styles.paymentTypeText,
+                      renewPaymentType === 'debt' && styles.paymentTypeTextDebt,
+                    ]}>
+                      دين
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {renewPaymentType === 'debt' && renewAmount && (
+                  <View style={styles.debtWarning}>
+                    <Ionicons name="warning" size={16} color={COLORS.warning} />
+                    <Text style={styles.debtWarningText}>
+                      سيتم تسجيل {formatCurrency(renewAmount)} كدين على المشترك
+                    </Text>
+                  </View>
+                )}
+
                 <Button
-                  title="تجديد الاشتراك"
+                  title={isProcessing ? 'جاري التجديد...' : 'تجديد الاشتراك'}
                   onPress={handleRenew}
                   loading={isProcessing}
                   style={styles.renewButton}
                 />
-              </>
+              </ScrollView>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add User Modal */}
+      <Modal
+        visible={showAddUserModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => {
+          setShowAddUserModal(false);
+          resetAddUserForm();
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={() => {
+                setShowAddUserModal(false);
+                resetAddUserForm();
+              }}>
+                <Ionicons name="close-outline" size={24} color={COLORS.textPrimary} />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>إضافة مشترك جديد</Text>
+              <View style={{ width: 24 }} />
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Input
+                label="اسم المستخدم *"
+                placeholder="username"
+                value={newUsername}
+                onChangeText={setNewUsername}
+                icon="person-outline"
+              />
+
+              <Input
+                label="كلمة المرور *"
+                placeholder="••••••••"
+                value={newPassword}
+                onChangeText={setNewPassword}
+                secureTextEntry
+                icon="lock-closed-outline"
+              />
+
+              <Input
+                label="الاسم الأول"
+                placeholder="الاسم الأول"
+                value={newFirstname}
+                onChangeText={setNewFirstname}
+              />
+
+              <Input
+                label="الاسم الأخير"
+                placeholder="الاسم الأخير"
+                value={newLastname}
+                onChangeText={setNewLastname}
+              />
+
+              <Input
+                label="رقم الهاتف"
+                placeholder="07xxxxxxxx"
+                value={newPhone}
+                onChangeText={setNewPhone}
+                keyboardType="phone-pad"
+                icon="call-outline"
+              />
+
+              <Input
+                label="البريد الإلكتروني"
+                placeholder="email@example.com"
+                value={newEmail}
+                onChangeText={setNewEmail}
+                keyboardType="email-address"
+                icon="mail-outline"
+              />
+
+              {/* اختيار الباقة */}
+              <Text style={styles.inputLabel}>الباقة</Text>
+              <View style={styles.profileSelector}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <TouchableOpacity
+                    style={[styles.profileOption, !newProfileId && styles.profileOptionActive]}
+                    onPress={() => setNewProfileId('')}
+                  >
+                    <Text style={[styles.profileOptionText, !newProfileId && styles.profileOptionTextActive]}>
+                      بدون
+                    </Text>
+                  </TouchableOpacity>
+                  {profiles.map((profile) => (
+                    <TouchableOpacity
+                      key={profile.profile_id}
+                      style={[styles.profileOption, newProfileId === String(profile.profile_id) && styles.profileOptionActive]}
+                      onPress={() => setNewProfileId(String(profile.profile_id))}
+                    >
+                      <Text style={[styles.profileOptionText, newProfileId === String(profile.profile_id) && styles.profileOptionTextActive]}>
+                        {profile.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* عدد الأشهر */}
+              <Text style={styles.inputLabel}>عدد الأشهر</Text>
+              <View style={styles.monthButtons}>
+                {[1, 2, 3, 6, 12].map((month) => (
+                  <TouchableOpacity
+                    key={month}
+                    style={[styles.monthButton, newMonths === String(month) && styles.monthButtonActive]}
+                    onPress={() => setNewMonths(String(month))}
+                  >
+                    <Text style={[styles.monthButtonText, newMonths === String(month) && styles.monthButtonTextActive]}>
+                      {month}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* تسجيل كدين */}
+              <TouchableOpacity
+                style={styles.checkboxRow}
+                onPress={() => setRegisterAsDebt(!registerAsDebt)}
+              >
+                <View style={[styles.checkbox, registerAsDebt && styles.checkboxChecked]}>
+                  {registerAsDebt && <Ionicons name="checkmark" size={16} color={COLORS.textLight} />}
+                </View>
+                <Text style={styles.checkboxLabel}>تسجيل المبلغ كدين</Text>
+              </TouchableOpacity>
+
+              {registerAsDebt && (
+                <Input
+                  label="مبلغ الدين *"
+                  placeholder="0.00"
+                  value={debtAmount}
+                  onChangeText={setDebtAmount}
+                  keyboardType="numeric"
+                  icon="cash-outline"
+                />
+              )}
+
+              <Button
+                title={isProcessing ? 'جاري الإضافة...' : 'إضافة المشترك'}
+                onPress={handleAddUser}
+                loading={isProcessing}
+                style={styles.addButton}
+              />
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -866,6 +1322,18 @@ const styles = StyleSheet.create({
   emptyButton: {
     marginTop: SIZES.margin * 2,
   },
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...SHADOWS.medium,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -925,13 +1393,9 @@ const styles = StyleSheet.create({
   modalCard: {
     marginBottom: SIZES.base,
   },
-  modalActions: {
-    flexDirection: 'row',
-    gap: SIZES.base,
+  deleteButton: {
     marginTop: SIZES.margin,
-  },
-  modalActionButton: {
-    flex: 1,
+    marginBottom: SIZES.margin * 2,
   },
   selectedUserText: {
     fontSize: SIZES.body1,
@@ -1016,5 +1480,113 @@ const styles = StyleSheet.create({
   },
   renewButton: {
     marginTop: SIZES.margin,
+  },
+  // Add User styles
+  inputLabel: {
+    fontSize: SIZES.body3,
+    color: COLORS.textSecondary,
+    textAlign: 'right',
+    marginBottom: SIZES.base,
+  },
+  profileSelector: {
+    marginBottom: SIZES.margin,
+  },
+  profileOption: {
+    paddingHorizontal: SIZES.padding,
+    paddingVertical: SIZES.base,
+    borderRadius: SIZES.radius,
+    backgroundColor: COLORS.background,
+    marginRight: SIZES.base,
+  },
+  profileOptionActive: {
+    backgroundColor: COLORS.primary,
+  },
+  profileOptionText: {
+    fontSize: SIZES.body3,
+    color: COLORS.textPrimary,
+  },
+  profileOptionTextActive: {
+    color: COLORS.textLight,
+    fontWeight: '600',
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: SIZES.base,
+    marginVertical: SIZES.margin,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  checkboxLabel: {
+    fontSize: SIZES.body2,
+    color: COLORS.textPrimary,
+  },
+  addButton: {
+    marginTop: SIZES.margin,
+    marginBottom: SIZES.margin * 2,
+  },
+  // Payment type styles
+  paymentTypeContainer: {
+    flexDirection: 'row',
+    gap: SIZES.base,
+    marginBottom: SIZES.margin,
+  },
+  paymentTypeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SIZES.base,
+    padding: SIZES.padding,
+    borderRadius: SIZES.radius,
+    backgroundColor: COLORS.background,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+  },
+  paymentTypeButtonActive: {
+    borderColor: COLORS.success,
+    backgroundColor: COLORS.success + '10',
+  },
+  paymentTypeButtonDebt: {
+    borderColor: COLORS.error,
+    backgroundColor: COLORS.error + '10',
+  },
+  paymentTypeText: {
+    fontSize: SIZES.body2,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+  },
+  paymentTypeTextActive: {
+    color: COLORS.success,
+  },
+  paymentTypeTextDebt: {
+    color: COLORS.error,
+  },
+  debtWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SIZES.base,
+    padding: SIZES.padding,
+    borderRadius: SIZES.radius,
+    backgroundColor: COLORS.warning + '15',
+    marginBottom: SIZES.margin,
+  },
+  debtWarningText: {
+    fontSize: SIZES.body3,
+    color: COLORS.warning,
+    fontWeight: '500',
   },
 });

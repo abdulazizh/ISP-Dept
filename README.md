@@ -1,141 +1,248 @@
-# 🚀 Welcome to Z.ai Code Scaffold
+# نظام إدارة المشتركين - SAS Radius Server
 
-A modern, production-ready web application scaffold powered by cutting-edge technologies, designed to accelerate your development with [Z.ai](https://chat.z.ai)'s AI-powered coding assistance.
+نظام متكامل لإدارة المشتركين والفواتير والديون متصل بسيرفر SAS Radius. يوفر واجهة عربية حديثة لإدارة جميع عمليات مقدمي خدمات الإنترنت.
 
-## ✨ Technology Stack
+## 🚀 المميزات الرئيسية
 
-This scaffold provides a robust foundation built with:
+### إدارة السيرفرات
+- إضافة وحذف وتعديل السيرفرات
+- اختبار الاتصال قبل الحفظ
+- تخزين بيانات السيرفرات بشكل آمن
+- دعم اتصال متعدد السيرفرات
 
-### 🎯 Core Framework
-- **⚡ Next.js 16** - The React framework for production with App Router
-- **📘 TypeScript 5** - Type-safe JavaScript for better developer experience
-- **🎨 Tailwind CSS 4** - Utility-first CSS framework for rapid UI development
+### إدارة المشتركين
+- عرض قائمة المشتركين مع البحث والفلترة
+- إنشاء مشتركين جدد
+- تفعيل وتعطيل المشتركين
+- تجديد الاشتراكات مع خيار واصل/دين
+- قطع الاتصال الفوري
+- حذف المشتركين (مع حماية من الحذف إذا كان لديهم ديون)
 
-### 🧩 UI Components & Styling
-- **🧩 shadcn/ui** - High-quality, accessible components built on Radix UI
-- **🎯 Lucide React** - Beautiful & consistent icon library
-- **🌈 Framer Motion** - Production-ready motion library for React
-- **🎨 Next Themes** - Perfect dark mode in 2 lines of code
+### إدارة الباقات (Profiles)
+- عرض جميع الباقات المتاحة
+- عرض تفاصيل السرعة والسعر
 
-### 📋 Forms & Validation
-- **🎣 React Hook Form** - Performant forms with easy validation
-- **✅ Zod** - TypeScript-first schema validation
+### إدارة المدراء (Managers)
+- عرض قائمة المدراء
+- عرض صلاحيات كل مدير
 
-### 🔄 State Management & Data Fetching
-- **🐻 Zustand** - Simple, scalable state management
-- **🔄 TanStack Query** - Powerful data synchronization for React
-- **🌐 Fetch** - Promise-based HTTP request
+### سجل التفعيلات (Activation Logs)
+- عرض سجل كامل لجميع العمليات
+- فلترة حسب نوع العملية (تفعيل/تجديد/تعطيل)
+- عرض تفاصيل المبلغ والباقة والتاريخ
 
-### 🗄️ Database & Backend
-- **🗄️ Prisma** - Next-generation TypeScript ORM
-- **🔐 NextAuth.js** - Complete open-source authentication solution
+### إدارة الديون
+- تسجيل الديون على المشتركين
+- تسجيل المدفوعات الجزئية
+- تقارير وإحصائيات الديون
+- حماية من حذف المشتركين المديونين
 
-### 🎨 Advanced UI Features
-- **📊 TanStack Table** - Headless UI for building tables and datagrids
-- **🖱️ DND Kit** - Modern drag and drop toolkit for React
-- **📊 Recharts** - Redefined chart library built with React and D3
-- **🖼️ Sharp** - High performance image processing
+## 🛠️ التقنيات المستخدمة
 
-### 🌍 Internationalization & Utilities
-- **🌍 Next Intl** - Internationalization library for Next.js
-- **📅 Date-fns** - Modern JavaScript date utility library
-- **🪝 ReactUse** - Collection of essential React hooks for modern development
+### Frontend
+- **Next.js 15** - إطار عمل React للويب
+- **React Native (Expo)** - لتطبيقات الموبايل
+- **TypeScript** - للكتابة الآمنة
+- **Tailwind CSS** - للتنسيق السريع
+- **shadcn/ui** - مكونات UI جاهزة
 
-## 🎯 Why This Scaffold?
+### Backend
+- **Next.js API Routes** - للـ proxy والـ API
+- **Prisma** - ORM لقواعد البيانات
+- **Axios** - للطلبات HTTP
 
-- **🏎️ Fast Development** - Pre-configured tooling and best practices
-- **🎨 Beautiful UI** - Complete shadcn/ui component library with advanced interactions
-- **🔒 Type Safety** - Full TypeScript configuration with Zod validation
-- **📱 Responsive** - Mobile-first design principles with smooth animations
-- **🗄️ Database Ready** - Prisma ORM configured for rapid backend development
-- **🔐 Auth Included** - NextAuth.js for secure authentication flows
-- **📊 Data Visualization** - Charts, tables, and drag-and-drop functionality
-- **🌍 i18n Ready** - Multi-language support with Next Intl
-- **🚀 Production Ready** - Optimized build and deployment settings
-- **🤖 AI-Friendly** - Structured codebase perfect for AI assistance
+### التخزين
+- **AsyncStorage** - للويب
+- **SQLite** - للموبايل
+- **localStorage** - للتخزين المؤقت
 
-## 🚀 Quick Start
+## 📦 هيكل المشروع
+
+```
+├── src/
+│   ├── app/
+│   │   ├── page.tsx          # الصفحة الرئيسية
+│   │   ├── layout.tsx        # تخطيط التطبيق
+│   │   └── api/
+│   │       └── sas/
+│   │           └── route.ts  # API Proxy
+│   ├── components/
+│   │   ├── sas/              # مكونات SAS
+│   │   │   ├── Header.tsx
+│   │   │   ├── Navigation.tsx
+│   │   │   ├── UsersTab.tsx
+│   │   │   ├── ActivationsTab.tsx
+│   │   │   ├── ProfilesTab.tsx
+│   │   │   ├── ServersTab.tsx
+│   │   │   └── ...
+│   │   └── ui/               # مكونات UI
+│   ├── hooks/
+│   │   ├── useSAS.ts         # Hook للـ SAS API
+│   │   └── useServers.ts     # Hook لإدارة السيرفرات
+│   ├── types/
+│   │   └── index.ts          # تعريفات TypeScript
+│   └── utils/
+│       ├── constants.ts      # الثوابت
+│       └── formatters.ts     # دوال التنسيق
+│
+└── debt-invoice-app/         # تطبيق React Native (Expo)
+    ├── app/
+    │   ├── (tabs)/
+    │   │   ├── subscribers.tsx
+    │   │   ├── debts.tsx
+    │   │   ├── servers.tsx
+    │   │   └── invoices.tsx
+    │   └── _layout.tsx
+    ├── src/
+    │   ├── api/
+    │   │   └── sasApi.ts      # SAS API Client
+    │   ├── context/
+    │   │   └── AppContext.tsx
+    │   └── database/
+    │       ├── database.web.ts
+    │       └── database.native.ts
+    └── package.json
+```
+
+## 🔧 التثبيت والتشغيل
+
+### متطلبات التشغيل
+- Node.js 18+
+- Bun أو npm
+- Expo CLI (للموبايل)
+
+### تشغيل التطبيق ويب
 
 ```bash
-# Install dependencies
+# تثبيت التبعيات
 bun install
 
-# Start development server
+# تشغيل الخادم
 bun run dev
+```
 
-# Build for production
-bun run build
+### تشغيل تطبيق الموبايل
 
-# Start production server
+```bash
+cd debt-invoice-app
+bun install
 bun start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to see your application running.
+## 🔐 إعدادات السيرفر
 
-## 🤖 Powered by Z.ai
+### الاتصال بسيرفر SAS
 
-This scaffold is optimized for use with [Z.ai](https://chat.z.ai) - your AI assistant for:
-
-- **💻 Code Generation** - Generate components, pages, and features instantly
-- **🎨 UI Development** - Create beautiful interfaces with AI assistance  
-- **🔧 Bug Fixing** - Identify and resolve issues with intelligent suggestions
-- **📝 Documentation** - Auto-generate comprehensive documentation
-- **🚀 Optimization** - Performance improvements and best practices
-
-Ready to build something amazing? Start chatting with Z.ai at [chat.z.ai](https://chat.z.ai) and experience the future of AI-powered development!
-
-## 📁 Project Structure
-
-```
-src/
-├── app/                 # Next.js App Router pages
-├── components/          # Reusable React components
-│   └── ui/             # shadcn/ui components
-├── hooks/              # Custom React hooks
-└── lib/                # Utility functions and configurations
+```typescript
+const serverConfig = {
+  name: 'سيرفر الرئيسي',
+  url: 'http://your-server-ip',
+  username: 'admin',
+  password: 'password',
+  isDefault: true
+};
 ```
 
-## 🎨 Available Features & Components
+### مفاتيح التشفير
 
-This scaffold includes a comprehensive set of modern web development tools:
+يستخدم النظام تشفير AES للتواصل مع API:
 
-### 🧩 UI Components (shadcn/ui)
-- **Layout**: Card, Separator, Aspect Ratio, Resizable Panels
-- **Forms**: Input, Textarea, Select, Checkbox, Radio Group, Switch
-- **Feedback**: Alert, Toast (Sonner), Progress, Skeleton
-- **Navigation**: Breadcrumb, Menubar, Navigation Menu, Pagination
-- **Overlay**: Dialog, Sheet, Popover, Tooltip, Hover Card
-- **Data Display**: Badge, Avatar, Calendar
+```typescript
+const ENCRYPTION_KEY = 'abcdefghijuklmno0123456789012345';
+```
 
-### 📊 Advanced Data Features
-- **Tables**: Powerful data tables with sorting, filtering, pagination (TanStack Table)
-- **Charts**: Beautiful visualizations with Recharts
-- **Forms**: Type-safe forms with React Hook Form + Zod validation
+## 📡 API Endpoints
 
-### 🎨 Interactive Features
-- **Animations**: Smooth micro-interactions with Framer Motion
-- **Drag & Drop**: Modern drag-and-drop functionality with DND Kit
-- **Theme Switching**: Built-in dark/light mode support
+### التوثيق
+```
+POST /api/sas
+{
+  "action": "login",
+  "server": { "url", "username", "password" }
+}
+```
 
-### 🔐 Backend Integration
-- **Authentication**: Ready-to-use auth flows with NextAuth.js
-- **Database**: Type-safe database operations with Prisma
-- **API Client**: HTTP requests with Fetch + TanStack Query
-- **State Management**: Simple and scalable with Zustand
+### مزامنة البيانات
+```
+POST /api/sas
+{
+  "action": "syncAll",
+  "server": { "url" },
+  "token": "..."
+}
+```
 
-### 🌍 Production Features
-- **Internationalization**: Multi-language support with Next Intl
-- **Image Optimization**: Automatic image processing with Sharp
-- **Type Safety**: End-to-end TypeScript with Zod validation
-- **Essential Hooks**: 100+ useful React hooks with ReactUse for common patterns
+### تفعيل مستخدم
+```
+POST /api/sas
+{
+  "action": "activateUser",
+  "userId": 123,
+  "profileId": 1,
+  "months": 1,
+  "amount": 25000
+}
+```
 
-## 🤝 Get Started with Z.ai
+### تجديد اشتراك
+```
+POST /api/sas
+{
+  "action": "renewSubscription",
+  "userId": 123,
+  "months": 1,
+  "amount": 25000
+}
+```
 
-1. **Clone this scaffold** to jumpstart your project
-2. **Visit [chat.z.ai](https://chat.z.ai)** to access your AI coding assistant
-3. **Start building** with intelligent code generation and assistance
-4. **Deploy with confidence** using the production-ready setup
+### سجل التفعيلات
+```
+POST /api/sas
+{
+  "action": "getActivationLog",
+  "page": 1,
+  "count": 100
+}
+```
+
+## 📝 التحديثات الأخيرة
+
+### الإصدار 2.0.0
+
+#### المميزات الجديدة
+- ✅ إضافة صفحة سجل التفعيلات (ActivationLog)
+- ✅ تحسين واجهة تجديد الاشتراك مع خيار واصل/دين
+- ✅ إصلاح حذف الدين (السماح بالحذف مع تأكيد)
+- ✅ تسجيل الدين تلقائياً عند التجديد
+
+#### الإصلاحات
+- 🐛 إصلاح مشكلة عدم عمل التفعيل والتعطيل
+- 🐛 إصلاح مشكلة عدم عمل قطع الاتصال
+- 🐛 إصلاح مشكلة عدم تحديث البيانات بعد العمليات
+- 🐛 إصلاح مشكلة عدم ظهور سجل التفعيلات
+
+#### التحسينات
+- ⚡ تحسين أداء المزامنة
+- ⚡ إضافة تحديث تلقائي للبيانات بعد الاتصال
+- ⚡ تحسين رسائل التأكيد والخطأ
+
+## 🤝 المساهمة
+
+نرحب بمساهماتكم! يرجى:
+1. عمل Fork للمشروع
+2. إنشاء branch للميزة الجديدة
+3. تقديم Pull Request
+
+## 📄 الرخصة
+
+هذا المشروع مرخص تحت رخصة MIT.
+
+## 📞 الدعم
+
+للدعم والاستفسارات:
+- افتح Issue على GitHub
+- تواصل عبر البريد الإلكتروني
 
 ---
 
-Built with ❤️ for the developer community. Supercharged by [Z.ai](https://chat.z.ai) 🚀
+**تم التطوير بواسطة فريق ISP-Dept**

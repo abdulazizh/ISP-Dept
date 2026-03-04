@@ -77,6 +77,15 @@ function TabsContent() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="debts"
+        options={{
+          title: 'الديون',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="wallet-outline" size={size} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

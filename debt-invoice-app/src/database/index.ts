@@ -3,20 +3,8 @@ import { Platform } from 'react-native';
 
 // ==================== TYPES ====================
 
-export interface Server {
+export interface GlobalUser {
   id?: number;
-  name: string;
-  url: string;
-  username: string;
-  password: string;
-  is_default: number;
-  created_at: string;
-  last_sync?: string;
-}
-
-export interface CachedUser {
-  id?: number;
-  server_id: number;
   user_id: number;
   username: string;
   firstname?: string;
@@ -28,13 +16,14 @@ export interface CachedUser {
   profile_id?: number;
   status: string;
   expiration?: string;
+  enabled?: number;
   created_at: string;
   updated_at: string;
+  source_server?: string;
 }
 
-export interface CachedProfile {
+export interface GlobalProfile {
   id?: number;
-  server_id: number;
   profile_id: number;
   name: string;
   price?: string;
@@ -44,52 +33,36 @@ export interface CachedProfile {
   created_at: string;
 }
 
-export interface CachedManager {
+export interface DebtRecord {
   id?: number;
-  server_id: number;
-  manager_id: number;
+  user_id: number;
   username: string;
-  email?: string;
-  firstname?: string;
-  lastname?: string;
-  phone?: string;
-  status?: string;
-  created_at: string;
-}
-
-export interface CachedDevice {
-  id?: number;
-  server_id: number;
-  device_id: number;
-  user_id: number;
-  device_name?: string;
-  mac_address?: string;
-  ip_address?: string;
-  last_seen?: string;
-  status: string;
-  created_at: string;
-}
-
-export interface CachedInvoice {
-  id?: number;
-  server_id: number;
-  invoice_id: number;
-  user_id: number;
-  invoice_no: string;
-  amount: string;
-  type: string;
+  amount: number;
   description?: string;
-  paid: number;
-  date: string;
+  months?: number;
+  profile_name?: string;
+  status: 'pending' | 'partial' | 'paid';
+  remaining_amount: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaymentRecord {
+  id?: number;
+  debt_id: number;
+  user_id: number;
+  username: string;
+  amount: number;
+  payment_method?: string;
+  notes?: string;
   created_at: string;
 }
 
 export interface LocalTransaction {
   id?: number;
-  server_id: number;
   user_id: number;
   username: string;
-  type: 'deposit' | 'withdraw' | 'renewal' | 'activation' | 'profile_change';
+  type: 'deposit' | 'withdraw' | 'renewal' | 'activation' | 'profile_change' | 'create_user';
   amount: number;
   description?: string;
   months?: number;
@@ -100,19 +73,15 @@ export interface LocalTransaction {
   error_message?: string;
 }
 
-export interface LocalInvoice {
+export interface Server {
   id?: number;
-  server_id: number;
-  user_id: number;
+  name: string;
+  url: string;
   username: string;
-  invoice_type: 'subscription' | 'renewal' | 'profile_change' | 'custom';
-  amount: number;
-  description?: string;
-  months?: number;
-  profile_name?: string;
-  paid: boolean;
-  due_date?: string;
+  password: string;
+  is_default: number;
   created_at: string;
+  last_sync?: string;
 }
 
 export interface SyncSettings {
@@ -145,100 +114,93 @@ export const initDatabase = async () => {
   return db.initDatabase();
 };
 
-// Servers
-export const addServer = async (server: Omit<Server, 'id' | 'created_at'>): Promise<number> => {
-  const db = await getDb();
-  return db.addServer(server);
-};
-
-export const updateServer = async (id: number, server: Partial<Server>): Promise<void> => {
-  const db = await getDb();
-  return db.updateServer(id, server);
-};
-
-export const deleteServer = async (id: number): Promise<void> => {
-  const db = await getDb();
-  return db.deleteServer(id);
-};
-
-export const getServers = async (): Promise<Server[]> => {
-  const db = await getDb();
-  return db.getServers();
-};
-
-export const getDefaultServer = async (): Promise<Server | null> => {
-  const db = await getDb();
-  return db.getDefaultServer();
-};
-
-export const getServerById = async (id: number): Promise<Server | null> => {
-  const db = await getDb();
-  return db.getServerById(id);
-};
-
 // Users
-export const cacheUsers = async (serverId: number, users: CachedUser[]): Promise<void> => {
+export const cacheUsers = async (users: GlobalUser[]): Promise<void> => {
   const db = await getDb();
-  return db.cacheUsers(serverId, users);
+  return db.cacheUsers(users);
 };
 
-export const getCachedUsers = async (serverId: number, status?: string): Promise<CachedUser[]> => {
+export const getCachedUsers = async (status?: string): Promise<GlobalUser[]> => {
   const db = await getDb();
-  return db.getCachedUsers(serverId, status);
+  return db.getCachedUsers(status);
 };
 
-export const searchCachedUsers = async (serverId: number, query: string): Promise<CachedUser[]> => {
+export const getCachedUserById = async (userId: number): Promise<GlobalUser | null> => {
   const db = await getDb();
-  return db.searchCachedUsers(serverId, query);
+  return db.getCachedUserById(userId);
 };
 
-export const updateUserBalance = async (serverId: number, userId: number, newBalance: string): Promise<void> => {
+export const addCachedUser = async (user: Omit<GlobalUser, 'id' | 'created_at' | 'updated_at'>): Promise<number> => {
   const db = await getDb();
-  return db.updateUserBalance(serverId, userId, newBalance);
+  return db.addCachedUser(user);
+};
+
+export const updateCachedUser = async (userId: number, updates: Partial<GlobalUser>): Promise<void> => {
+  const db = await getDb();
+  return db.updateCachedUser(userId, updates);
+};
+
+export const deleteCachedUser = async (userId: number): Promise<boolean> => {
+  const db = await getDb();
+  return db.deleteCachedUser(userId);
+};
+
+export const searchCachedUsers = async (query: string): Promise<GlobalUser[]> => {
+  const db = await getDb();
+  return db.searchCachedUsers(query);
 };
 
 // Profiles
-export const cacheProfiles = async (serverId: number, profiles: CachedProfile[]): Promise<void> => {
+export const cacheProfiles = async (profiles: GlobalProfile[]): Promise<void> => {
   const db = await getDb();
-  return db.cacheProfiles(serverId, profiles);
+  return db.cacheProfiles(profiles);
 };
 
-export const getCachedProfiles = async (serverId: number): Promise<CachedProfile[]> => {
+export const getCachedProfiles = async (): Promise<GlobalProfile[]> => {
   const db = await getDb();
-  return db.getCachedProfiles(serverId);
+  return db.getCachedProfiles();
 };
 
-// Managers
-export const cacheManagers = async (serverId: number, managers: CachedManager[]): Promise<void> => {
+// Debt Records
+export const addDebtRecord = async (debt: Omit<DebtRecord, 'id' | 'created_at' | 'updated_at'>): Promise<number> => {
   const db = await getDb();
-  return db.cacheManagers(serverId, managers);
+  return db.addDebtRecord(debt);
 };
 
-export const getCachedManagers = async (serverId: number): Promise<CachedManager[]> => {
+export const getDebtRecords = async (userId?: number, status?: string): Promise<DebtRecord[]> => {
   const db = await getDb();
-  return db.getCachedManagers(serverId);
+  return db.getDebtRecords(userId, status);
 };
 
-// Devices
-export const cacheDevices = async (serverId: number, devices: CachedDevice[]): Promise<void> => {
+export const updateDebtRecord = async (id: number, updates: Partial<DebtRecord>): Promise<void> => {
   const db = await getDb();
-  return db.cacheDevices(serverId, devices);
+  return db.updateDebtRecord(id, updates);
 };
 
-export const getCachedDevices = async (serverId: number): Promise<CachedDevice[]> => {
+export const deleteDebtRecord = async (id: number): Promise<void> => {
   const db = await getDb();
-  return db.getCachedDevices(serverId);
+  return db.deleteDebtRecord(id);
 };
 
-// Invoices
-export const cacheInvoices = async (serverId: number, invoices: CachedInvoice[]): Promise<void> => {
+export const getUserTotalDebt = async (userId: number): Promise<number> => {
   const db = await getDb();
-  return db.cacheInvoices(serverId, invoices);
+  return db.getUserTotalDebt(userId);
 };
 
-export const getCachedInvoices = async (serverId: number, paid?: boolean): Promise<CachedInvoice[]> => {
+export const hasUserDebts = async (userId: number): Promise<boolean> => {
   const db = await getDb();
-  return db.getCachedInvoices(serverId, paid);
+  return db.hasUserDebts(userId);
+};
+
+// Payment Records
+export const addPaymentRecord = async (payment: Omit<PaymentRecord, 'id' | 'created_at'>): Promise<number> => {
+  const db = await getDb();
+  return db.addPaymentRecord(payment);
+};
+
+export const getPaymentRecords = async (debtId?: number, userId?: number): Promise<PaymentRecord[]> => {
+  const db = await getDb();
+  return db.getPaymentRecords(debtId, userId);
 };
 
 // Local Transactions
@@ -247,9 +209,9 @@ export const addLocalTransaction = async (transaction: Omit<LocalTransaction, 'i
   return db.addLocalTransaction(transaction);
 };
 
-export const getLocalTransactions = async (serverId?: number, status?: string): Promise<LocalTransaction[]> => {
+export const getLocalTransactions = async (status?: string): Promise<LocalTransaction[]> => {
   const db = await getDb();
-  return db.getLocalTransactions(serverId, status);
+  return db.getLocalTransactions(status);
 };
 
 export const updateLocalTransaction = async (id: number, updates: Partial<LocalTransaction>): Promise<void> => {
@@ -262,33 +224,54 @@ export const getPendingTransactions = async (): Promise<LocalTransaction[]> => {
   return db.getPendingTransactions();
 };
 
-export const deleteLocalTransaction = async (id: number): Promise<void> => {
+// Statistics
+export const getStats = async () => {
   const db = await getDb();
-  return db.deleteLocalTransaction(id);
+  return db.getStats();
 };
 
-// Local Invoices
-export const addLocalInvoice = async (invoice: Omit<LocalInvoice, 'id' | 'created_at'>): Promise<number> => {
+// Sync
+export const updateLastSync = async (): Promise<void> => {
   const db = await getDb();
-  return db.addLocalInvoice(invoice);
+  return db.updateLastSync();
 };
 
-export const getLocalInvoices = async (serverId?: number, userId?: number): Promise<LocalInvoice[]> => {
+export const getLastSync = async (): Promise<string | null> => {
   const db = await getDb();
-  return db.getLocalInvoices(serverId, userId);
+  return db.getLastSync();
 };
 
-export const updateLocalInvoice = async (id: number, updates: Partial<LocalInvoice>): Promise<void> => {
+// Servers
+export const addServer = async (server: Omit<Server, 'id' | 'created_at'>): Promise<number> => {
   const db = await getDb();
-  return db.updateLocalInvoice(id, updates);
+  return db.addServer(server);
 };
 
-export const deleteLocalInvoice = async (id: number): Promise<void> => {
+export const getServers = async (): Promise<Server[]> => {
   const db = await getDb();
-  return db.deleteLocalInvoice(id);
+  return db.getServers();
 };
 
-// Sync Settings
+export const updateServer = async (id: number, server: Partial<Server>): Promise<void> => {
+  const db = await getDb();
+  return db.updateServer(id, server);
+};
+
+export const deleteServer = async (id: number): Promise<void> => {
+  const db = await getDb();
+  return db.deleteServer(id);
+};
+
+export const getDefaultServer = async (): Promise<Server | null> => {
+  const db = await getDb();
+  return db.getDefaultServer();
+};
+
+export const getServerById = async (id: number): Promise<Server | null> => {
+  const db = await getDb();
+  return db.getServerById(id);
+};
+
 export const getSyncSettings = async (): Promise<SyncSettings | null> => {
   const db = await getDb();
   return db.getSyncSettings();
@@ -299,13 +282,6 @@ export const updateSyncSettings = async (settings: Partial<SyncSettings>): Promi
   return db.updateSyncSettings(settings);
 };
 
-// Statistics
-export const getServerStats = async (serverId: number) => {
-  const db = await getDb();
-  return db.getServerStats(serverId);
-};
-
-// Sync Operations
 export const updateServerSyncTime = async (serverId: number): Promise<void> => {
   const db = await getDb();
   return db.updateServerSyncTime(serverId);
@@ -314,10 +290,4 @@ export const updateServerSyncTime = async (serverId: number): Promise<void> => {
 export const clearCachedData = async (serverId: number): Promise<void> => {
   const db = await getDb();
   return db.clearCachedData(serverId);
-};
-
-// Export
-export const exportAllData = async () => {
-  const db = await getDb();
-  return db.exportAllData();
 };

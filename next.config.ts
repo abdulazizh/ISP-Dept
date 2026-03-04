@@ -9,9 +9,14 @@ const nextConfig: NextConfig = {
   reactStrictMode: false,
   async rewrites() {
     return [
+      // Serve Expo app from root
       {
-        source: '/app',
-        destination: '/app/index.html',
+        source: '/_expo/:path*',
+        destination: '/app/_expo/:path*',
+      },
+      {
+        source: '/assets/:path*',
+        destination: '/app/assets/:path*',
       },
     ];
   },

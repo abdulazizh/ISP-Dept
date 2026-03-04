@@ -12,7 +12,9 @@ export const DEFAULT_ADMIN = {
 // Storage Keys
 export const STORAGE_KEYS = {
   SERVERS: 'sas_servers',
-  USERS_PREFIX: 'sas_users_'
+  USERS_PREFIX: 'sas_users_',
+  TOKEN_PREFIX: 'sas_token_',
+  CURRENT_SERVER: 'sas_current_server'
 }
 
 // API Endpoints

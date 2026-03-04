@@ -131,7 +131,7 @@ export default function ServersScreen() {
     try {
       const success = await selectServer(server);
       if (success) {
-        Alert.alert('نجاح', 'تم الاتصال بالسيرفر بنجاح');
+        Alert.alert('نجاح', 'تم الاتصال بالسيرفر بنجاح\nتم جلب البيانات تلقائياً');
       } else {
         Alert.alert('خطأ', 'فشل الاتصال بالسيرفر');
       }
@@ -356,7 +356,7 @@ export default function ServersScreen() {
 
               <Input
                 label="اسم المستخدم *"
-                placeholder="admin"
+                placeholder="aziz"
                 value={username}
                 onChangeText={setUsername}
                 icon="person-outline"

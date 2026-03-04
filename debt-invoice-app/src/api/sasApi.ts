@@ -7,7 +7,7 @@ import CryptoJS from 'crypto-js';
 const ENCRYPTION_KEY = 'abcdefghijuklmno0123456789012345';
 
 // Proxy URL for web - Next.js server
-const PROXY_API_URL = 'https://7caafz-ip-8-218-223-229.tunnelmole.net/api/sas';
+const PROXY_API_URL = 'https://2vse2g-ip-47-242-33-134.tunnelmole.net/api/sas';
 
 // Types
 export interface ServerConfig {
@@ -380,6 +380,255 @@ class SASApiService {
       return { success: false, message: error.message };
     }
   }
+
+  // Create new user
+  async createUser(userData: {
+    username: string;
+    password: string;
+    firstname?: string;
+    lastname?: string;
+    phone?: string;
+    email?: string;
+    profile_id?: number;
+    parent_id?: number;
+    enabled?: number;
+    expiration?: string;
+  }): Promise<{ success: boolean; user?: any; message?: string; errors?: Record<string, string[]> }> {
+    if (!this.adminApi || !this.token) {
+      // Try to login first
+      const loginResult = await this.login();
+      if (!loginResult.success) {
+        return { success: false, message: loginResult.message };
+      }
+    }
+
+    try {
+      if (this.useProxy) {
+        const response = await this.adminApi!.post('', {
+          action: 'createUser',
+          server: {
+            url: this.currentServer!.url,
+            username: this.currentServer!.username,
+            password: this.currentServer!.password,
+          },
+          token: this.token,
+          userData,
+        });
+        return response.data;
+      } else {
+        // Direct implementation for native
+        return { success: false, message: 'غير مدعوم حالياً' };
+      }
+    } catch (error: any) {
+      return { success: false, message: error.message };
+    }
+  }
+
+  // Delete user
+  async deleteUser(userId: number): Promise<{ success: boolean; message?: string }> {
+    if (!this.adminApi || !this.token) {
+      return { success: false, message: 'غير متصل بالسيرفر' };
+    }
+
+    try {
+      if (this.useProxy) {
+        const response = await this.adminApi.post('', {
+          action: 'deleteUser',
+          server: {
+            url: this.currentServer!.url,
+            username: this.currentServer!.username,
+            password: this.currentServer!.password,
+          },
+          token: this.token,
+          userId,
+        });
+        return response.data;
+      } else {
+        return { success: false, message: 'غير مدعوم حالياً' };
+      }
+    } catch (error: any) {
+      return { success: false, message: error.message };
+    }
+  }
+
+  // Activate user
+  async activateUser(userId: number, profileId: number, months?: number, amount?: number): Promise<{ success: boolean; message?: string }> {
+    if (!this.adminApi || !this.token) {
+      const loginResult = await this.login();
+      if (!loginResult.success) {
+        return { success: false, message: loginResult.message };
+      }
+    }
+
+    try {
+      if (this.useProxy) {
+        const response = await this.adminApi!.post('', {
+          action: 'activateUser',
+          server: {
+            url: this.currentServer!.url,
+            username: this.currentServer!.username,
+            password: this.currentServer!.password,
+          },
+          token: this.token,
+          userId,
+          profileId,
+          months,
+          amount,
+        });
+        return response.data;
+      } else {
+        return { success: false, message: 'غير مدعوم حالياً' };
+      }
+    } catch (error: any) {
+      return { success: false, message: error.message };
+    }
+  }
+
+  // Deactivate user
+  async deactivateUser(userId: number): Promise<{ success: boolean; message?: string }> {
+    if (!this.adminApi || !this.token) {
+      const loginResult = await this.login();
+      if (!loginResult.success) {
+        return { success: false, message: loginResult.message };
+      }
+    }
+
+    try {
+      if (this.useProxy) {
+        const response = await this.adminApi!.post('', {
+          action: 'deactivateUser',
+          server: {
+            url: this.currentServer!.url,
+            username: this.currentServer!.username,
+            password: this.currentServer!.password,
+          },
+          token: this.token,
+          userId,
+        });
+        return response.data;
+      } else {
+        return { success: false, message: 'غير مدعوم حالياً' };
+      }
+    } catch (error: any) {
+      return { success: false, message: error.message };
+    }
+  }
+
+  // Renew subscription
+  async renewSubscription(userId: number, months: number, profileId?: number, amount?: number): Promise<{ success: boolean; message?: string }> {
+    if (!this.adminApi || !this.token) {
+      const loginResult = await this.login();
+      if (!loginResult.success) {
+        return { success: false, message: loginResult.message };
+      }
+    }
+
+    try {
+      if (this.useProxy) {
+        const response = await this.adminApi!.post('', {
+          action: 'renewSubscription',
+          server: {
+            url: this.currentServer!.url,
+            username: this.currentServer!.username,
+            password: this.currentServer!.password,
+          },
+          token: this.token,
+          userId,
+          months,
+          profileId,
+          amount,
+        });
+        return response.data;
+      } else {
+        return { success: false, message: 'غير مدعوم حالياً' };
+      }
+    } catch (error: any) {
+      return { success: false, message: error.message };
+    }
+  }
+
+  // Disconnect user
+  async disconnectUser(userId: number): Promise<{ success: boolean; message?: string }> {
+    if (!this.adminApi || !this.token) {
+      const loginResult = await this.login();
+      if (!loginResult.success) {
+        return { success: false, message: loginResult.message };
+      }
+    }
+
+    try {
+      if (this.useProxy) {
+        const response = await this.adminApi!.post('', {
+          action: 'disconnectUser',
+          server: {
+            url: this.currentServer!.url,
+            username: this.currentServer!.username,
+            password: this.currentServer!.password,
+          },
+          token: this.token,
+          userId,
+        });
+        return response.data;
+      } else {
+        return { success: false, message: 'غير مدعوم حالياً' };
+      }
+    } catch (error: any) {
+      return { success: false, message: error.message };
+    }
+  }
+
+  // Get activation log
+  async getActivationLog(page: number = 1, count: number = 100, userId?: number): Promise<{
+    success: boolean;
+    logs?: ActivationLog[];
+    total?: number;
+    message?: string;
+  }> {
+    if (!this.adminApi || !this.token) {
+      const loginResult = await this.login();
+      if (!loginResult.success) {
+        return { success: false, message: loginResult.message };
+      }
+    }
+
+    try {
+      if (this.useProxy) {
+        const response = await this.adminApi!.post('', {
+          action: 'getActivationLog',
+          server: {
+            url: this.currentServer!.url,
+            username: this.currentServer!.username,
+            password: this.currentServer!.password,
+          },
+          token: this.token,
+          page,
+          count,
+          userId,
+        });
+        return response.data;
+      } else {
+        return { success: false, message: 'غير مدعوم حالياً' };
+      }
+    } catch (error: any) {
+      return { success: false, message: error.message };
+    }
+  }
+}
+
+// Activation Log interface
+export interface ActivationLog {
+  id: number;
+  user_id: number;
+  username: string;
+  profile_id?: number;
+  profile_name?: string;
+  action: string;
+  amount?: number;
+  months?: number;
+  created_at: string;
+  manager_id?: number;
+  manager_name?: string;
+  description?: string;
 }
 
 export const sasApi = new SASApiService();
